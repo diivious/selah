@@ -22,6 +22,7 @@ import '../screens/note_screen.dart';
 import '../widgets/responsive_text.dart';
 import '../widgets/strongs_definition_dialog.dart';
 import '../widgets/strongs_definition_lookup_dialog.dart';
+import '../utils/strongs_search_state_helper.dart';
 
 // Helper function to create a slightly different shade for bars
 Color _adjustBarColor(Color backgroundColor) {
@@ -35,11 +36,13 @@ Color _adjustBarColor(Color backgroundColor) {
 class StrongsSearchScreen extends StatefulWidget {
   final int? sourceScreenIndex;
   final bool searchImmediately;
+  final bool isFromDialog;
 
   const StrongsSearchScreen({
     super.key,
     this.sourceScreenIndex,
     this.searchImmediately = false,
+    this.isFromDialog = false,
   });
 
   @override
@@ -1149,7 +1152,11 @@ class _StrongsSearchScreenState extends State<StrongsSearchScreen>
     }
     _disposeVerseReferenceRecognizers();
     _searchButtonFocusNode.dispose();
-    _persistSearchState(_controller.text.trim());
+    // Only persist search state if this is NOT a dialog-initiated search
+    // Dialog-initiated searches should preserve the stashed state instead
+    if (!widget.isFromDialog) {
+      _persistSearchState(_controller.text.trim());
+    }
     _scrollOffsetSaveTimer?.cancel();
     if (_resultsScrollController.hasClients) {
       unawaited(_saveScrollOffset(_resultsScrollController.offset));
@@ -1203,7 +1210,18 @@ class _StrongsSearchScreenState extends State<StrongsSearchScreen>
     if (!mounted || _controller.text.trim() != lastSearch.trim()) {
       return;
     }
-    await _loadScrollOffset();
+
+    // Skip scroll restoration when launched from dialog - start at top instead
+    if (!widget.isFromDialog) {
+      await _loadScrollOffset();
+    } else {
+      // Force scroll to top for dialog-initiated searches
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_resultsScrollController.hasClients) {
+          _resultsScrollController.jumpTo(0.0);
+        }
+      });
+    }
   }
 
   Future<void> _waitForFrames(int frameCount) async {
@@ -1286,6 +1304,31 @@ class _StrongsSearchScreenState extends State<StrongsSearchScreen>
     await prefs.setDouble(_scrollOffsetKey, offset);
   }
 
+  /// Handle navigation pop - restore stashed state if this is a dialog-initiated search
+  Future<bool> _handlePopNavigation() async {
+    // Only handle special behavior for dialog-initiated searches
+    if (!widget.isFromDialog) {
+      return true; // Allow normal pop
+    }
+
+    // Pop the stashed state and restore it to SharedPreferences
+    final stashedState = await StrongsSearchStateHelper.popState();
+    if (stashedState != null) {
+      final prefs = await SharedPreferences.getInstance();
+      // Restore the search term
+      await prefs.setString(_lastSearchTermKey, stashedState.searchTerm);
+      // Restore the scroll offset
+      await prefs.setDouble(_scrollOffsetKey, stashedState.scrollOffset);
+    }
+
+    // Pop the screen - the previous screen will restore its state
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+
+    return false; // We handled the pop manually
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1302,9 +1345,16 @@ class _StrongsSearchScreenState extends State<StrongsSearchScreen>
         Theme.of(context).brightness == Brightness.dark
             ? darkBackgroundColor.value
             : lightBackgroundColor.value);
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      key: _scaffoldKey,
+    return PopScope(
+      canPop: !widget.isFromDialog,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (widget.isFromDialog && !didPop) {
+          await _handlePopNavigation();
+        }
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        key: _scaffoldKey,
       appBar: AppBar(
         scrolledUnderElevation: 0,
         iconTheme: IconThemeData(
@@ -1644,6 +1694,7 @@ class _StrongsSearchScreenState extends State<StrongsSearchScreen>
                 ],
               ),
             )),
+      ),
       ),
     );
   }

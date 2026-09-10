@@ -12,6 +12,8 @@ import '../utils/font_size_adjustments.dart';
 import '../utils/preferences_constants.dart';
 import '../utils/snackbar_notification.dart';
 import '../utils/verse_reference_detector.dart';
+import '../utils/strongs_search_state_helper.dart';
+import '../models/strongs_search_state.dart';
 
 class StrongsDefinitionDialog {
   static final RegExp _htmlTagPattern = RegExp(r'<[^>]+>');
@@ -84,6 +86,31 @@ class StrongsDefinitionDialog {
           TextButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
+              
+              // Stash the current search state (if any) before navigating
+              final lastSearchTerm =
+                  prefs.getString(strongsSearchTermPreferenceKey) ?? '';
+              final scrollOffset =
+                  prefs.getDouble('strongsSearchScrollOffset') ?? 0.0;
+              
+              if (lastSearchTerm.isNotEmpty || scrollOffset > 0.0) {
+                // Only stash if there's a previous search state to preserve
+                // For now, we stash a minimal state since we don't have access to full state
+                // The search screen will restore its own full state when needed
+                await StrongsSearchStateHelper.pushState(
+                  StrongsSearchState(
+                    searchTerm: lastSearchTerm,
+                    searchType: null,
+                    searchResults: [],
+                    foundStrongsNumbers: {},
+                    phraseSummary: {},
+                    totalMatches: null,
+                    totalVerses: null,
+                    scrollOffset: scrollOffset,
+                  ),
+                );
+              }
+              
               await prefs.setString(
                   strongsSearchTermPreferenceKey, strongsNumber);
               if (!context.mounted) return;
@@ -92,6 +119,7 @@ class StrongsDefinitionDialog {
                 MaterialPageRoute(
                   builder: (_) => const StrongsSearchScreen(
                     searchImmediately: true,
+                    isFromDialog: true,
                   ),
                 ),
               );
