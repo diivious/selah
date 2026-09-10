@@ -1719,8 +1719,8 @@ class _StrongsSearchScreenState extends State<StrongsSearchScreen>
 
   List<Widget> _buildPhraseSummarySlivers(
       BuildContext context, double fontSize) {
-    final sortedPhrases = _phraseSummary.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final sortedPhrases = _phraseSummary.entries.toList()..sort((a, b) => a.key.compareTo(b.key.toLowerCase()));
+      //..sort((a, b) => a.key.compareTo(b.key));
     final phraseStyle = _getTextStyle(context, fontSize);
     final countStyle = _getTextStyle(context, fontSize);
     final totalPhraseStyle = _getTextStyle(context, fontSize, bold: true);

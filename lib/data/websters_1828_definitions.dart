@@ -185183,7 +185183,7 @@ const Map<String, Map<String, dynamic>> websters1828 = {
   },
   'Saint': {
     'id': 46296,
-    'definition': '<b>SA\'INFOIN,<br><br>SAINT</b>, <i>n.</i> [Fr. from L. sanctus.; It. Sp. santo]<br><br>1. A person sanctified; a holy or godly person; one eminent for piety and virtue. It is particularly applied to the apostles and other holy persons mentioned in Scripture. A hypocrite may imitate a saint. Psa 16.<br><br>2. One of the blessed in heaven. Rev 18.<br><br>3. The holy angels are called saint. Deu 33. Jude 14.<br><br>4. One canonized by the church of Rome.<br><br><b>SAINT</b>, <i>v.t.</i> To number or enroll among saints by an official act of the pope; to canonize.<br><br>Over against the church stands a large hospital, erected by a shoemaker who has been beautified, though never sainted.<br><br><b>SAINT</b>, <i>v.i.</i> To act with a show of piety.',
+    'definition': '<b>SA\'INFOIN,<br><br>SAINT</b>, <i>n.</i> [Fr. from L. sanctus.; It. Sp. santo]<br><br>1. A person sanctified; a holy or godly person; one eminent for piety and virtue. It is particularly applied to the apostles and other holy persons mentioned in Scripture. A hypocrite may imitate a saint. Psa 16.<br><br>2. One of the blessed in heaven. Rev 18.<br><br>4. One canonized by the church of Rome.<br><br><b>SAINT</b>, <i>v.t.</i> To number or enroll among saints by an official act of the pope; to canonize.<br><br>Over against the church stands a large hospital, erected by a shoemaker who has been beautified, though never sainted.<br><br><b>SAINT</b>, <i>v.i.</i> To act with a show of piety.',
   },
   'Saint-Seeming': {
     'id': 46297,
