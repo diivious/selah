@@ -75,6 +75,15 @@ CREATE TABLE search_history (
   "timestamp" BIGINT NOT NULL UNIQUE -- Used for upsert conflicts
 );
 
+-- Preserve the whole deleted row in the WAL for Realtime clients and any
+-- server-side user_id filters. PostgreSQL's default replica identity includes
+-- only the primary key for DELETE events, which can prevent another device
+-- from receiving enough information to apply the live removal.
+ALTER TABLE highlights REPLICA IDENTITY FULL;
+ALTER TABLE notes REPLICA IDENTITY FULL;
+ALTER TABLE history REPLICA IDENTITY FULL;
+ALTER TABLE search_history REPLICA IDENTITY FULL;
+
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE highlights ENABLE ROW LEVEL SECURITY;

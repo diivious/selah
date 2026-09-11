@@ -150,6 +150,8 @@ class SupabaseSyncService {
   RealtimeChannel? _historyChannel;
   RealtimeChannel? _searchHistoryChannel;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Future<void>? _realtimeRecoveryFuture;
+  int _realtimeRecoveryAttempt = 0;
 
   // Persistent queues for offline changes (persist across app restarts)
   final List<SyncOperation> _highlightsPendingQueue = [];
@@ -543,14 +545,31 @@ class SupabaseSyncService {
     for (final index in matchingIndices) {
       final existingOperation = queue[index];
 
-      // Handle create + delete = cancel both operations
-      if ((existingOperation.operation == 'create' &&
-              newOperation.operation == 'delete') ||
-          (existingOperation.operation == 'delete' &&
-              newOperation.operation == 'create')) {
-        // Remove both operations (cancel them out)
-        queue.removeAt(index);
-        return; // Both operations are cancelled
+      // A locally-created, never-uploaded item can be safely cancelled when
+      // it is deleted before reconnecting. If either operation has a remote
+      // UUID, though, the item already exists remotely and dropping the delete
+      // leaves a ghost record on every other device.
+      if (existingOperation.operation == 'create' &&
+          newOperation.operation == 'delete') {
+        final existingUuid = existingOperation.data['uuid'] as String?;
+        final newUuid = newOperation.data['uuid'] as String?;
+        final existsRemotely =
+            (existingUuid != null && existingUuid.isNotEmpty) ||
+                (newUuid != null && newUuid.isNotEmpty);
+        if (existsRemotely) {
+          queue[index] = newOperation;
+        } else {
+          queue.removeAt(index);
+        }
+        return;
+      }
+
+      // Delete followed by create means the final desired state is present.
+      // This should not be cancelled with the preceding delete.
+      if (existingOperation.operation == 'delete' &&
+          newOperation.operation == 'create') {
+        queue[index] = newOperation;
+        return;
       }
 
       // Handle create + update = merge into updated create
@@ -585,26 +604,6 @@ class SupabaseSyncService {
                     ? newOperation.timestamp
                     : existingOperation.timestamp);
         queue[index] = deleteOperation;
-        return;
-      }
-
-      // Handle delete + create = convert to create
-      if ((existingOperation.operation == 'delete' &&
-              newOperation.operation == 'create') ||
-          (existingOperation.operation == 'create' &&
-              newOperation.operation == 'delete')) {
-        // Convert to create operation with the most recent timestamp
-        final createOperation = SyncOperation(
-            id: newOperation.id,
-            type: newOperation.type,
-            operation: 'create',
-            data: newOperation.data,
-            userId: newOperation.userId,
-            timestamp:
-                newOperation.timestamp.isAfter(existingOperation.timestamp)
-                    ? newOperation.timestamp
-                    : existingOperation.timestamp);
-        queue[index] = createOperation;
         return;
       }
 
@@ -1107,6 +1106,126 @@ class SupabaseSyncService {
     return _lifecycleGeneration == generation && _currentUserId == userId;
   }
 
+  /// Releases all channel references before unsubscribing. A channel can report
+  /// `closed` asynchronously after unsubscribe; clearing the references first
+  /// prevents that expected callback from being mistaken for a lost connection.
+  void _unsubscribeRealtimeChannels() {
+    final highlightsChannel = _highlightsChannel;
+    final notesChannel = _notesChannel;
+    final historyChannel = _historyChannel;
+    final searchHistoryChannel = _searchHistoryChannel;
+
+    _highlightsChannel = null;
+    _notesChannel = null;
+    _historyChannel = null;
+    _searchHistoryChannel = null;
+
+    if (highlightsChannel != null) unawaited(highlightsChannel.unsubscribe());
+    if (notesChannel != null) unawaited(notesChannel.unsubscribe());
+    if (historyChannel != null) unawaited(historyChannel.unsubscribe());
+    if (searchHistoryChannel != null) {
+      unawaited(searchHistoryChannel.unsubscribe());
+    }
+  }
+
+  bool _isCurrentRealtimeChannel(String category, RealtimeChannel channel) {
+    switch (category) {
+      case 'highlights':
+        return identical(_highlightsChannel, channel);
+      case 'notes':
+        return identical(_notesChannel, channel);
+      case 'history':
+        return identical(_historyChannel, channel);
+      case 'search_history':
+        return identical(_searchHistoryChannel, channel);
+      default:
+        return false;
+    }
+  }
+
+  void _handleRealtimeSubscriptionStatus({
+    required String category,
+    required RealtimeChannel channel,
+    required RealtimeSubscribeStatus status,
+    required Object? error,
+    required String userId,
+    required int generation,
+  }) {
+    // Ignore callbacks from channels that were deliberately replaced, signed
+    // out, or disposed. This is especially important on Android, where a close
+    // callback can be delivered after the app has resumed and recreated a
+    // channel.
+    if (!_isActiveFor(userId, generation) ||
+        !_isCurrentRealtimeChannel(category, channel)) {
+      return;
+    }
+
+    if (status == RealtimeSubscribeStatus.subscribed) {
+      _realtimeRecoveryAttempt = 0;
+      return;
+    }
+
+    _isListening = false;
+    ErrorHandler.logError(
+      error ?? StateError('Realtime $category subscription $status'),
+      customMessage: 'Realtime $category subscription $status',
+      context: {'category': category, 'status': status.name},
+    );
+    _scheduleRealtimeRecovery(userId: userId, generation: generation);
+  }
+
+  void _scheduleRealtimeRecovery({
+    required String userId,
+    required int generation,
+  }) {
+    if (_realtimeRecoveryFuture != null || !_isActiveFor(userId, generation)) {
+      return;
+    }
+
+    const retryDelays = [
+      syncRetryDelay1Seconds,
+      syncRetryDelay2Seconds,
+      syncRetryDelay3Seconds,
+    ];
+    final delaySeconds =
+        retryDelays[_realtimeRecoveryAttempt.clamp(0, retryDelays.length - 1)];
+    _realtimeRecoveryAttempt++;
+
+    final recovery =
+        Future<void>.delayed(Duration(seconds: delaySeconds)).then((_) async {
+      if (!_isActiveFor(userId, generation)) return;
+      await _checkConnectionAndSetup(
+        expectedUserId: userId,
+        expectedGeneration: generation,
+      );
+    });
+    _realtimeRecoveryFuture = recovery;
+    unawaited(recovery.whenComplete(() {
+      if (identical(_realtimeRecoveryFuture, recovery)) {
+        _realtimeRecoveryFuture = null;
+        // _checkConnectionAndSetup records connection failures instead of
+        // throwing. Keep retrying in that case, because a mobile socket can
+        // fail while Android still reports a usable network interface.
+        if (!_isListening && _isActiveFor(userId, generation)) {
+          _scheduleRealtimeRecovery(userId: userId, generation: generation);
+        }
+      }
+    }));
+  }
+
+  bool _isRealtimeRecordForCurrentUser(Map<String, dynamic> record) {
+    final userId = _currentUserId;
+    return userId != null && record['user_id'] == userId;
+  }
+
+  bool _isRealtimeDeleteForCurrentUser(Map<String, dynamic> record) {
+    // With PostgreSQL's default replica identity, delete payloads contain only
+    // the primary key. In that case the UUID is matched against local data
+    // below. When user_id is present, reject another account's record early.
+    final recordUserId = record['user_id'];
+    return recordUserId == null || recordUserId == _currentUserId;
+  }
+
   Future<void> _initializeInternal({
     required String userId,
     required int generation,
@@ -1115,10 +1234,7 @@ class SupabaseSyncService {
     if (!_isActiveFor(userId, generation)) return;
 
     // Cancel existing first
-    _highlightsChannel?.unsubscribe();
-    _notesChannel?.unsubscribe();
-    _historyChannel?.unsubscribe();
-    _searchHistoryChannel?.unsubscribe();
+    _unsubscribeRealtimeChannels();
     _retryTimer?.cancel();
 
     // Check actual connectivity status and set appropriate initial state
@@ -1251,7 +1367,6 @@ class SupabaseSyncService {
       return;
     }
     try {
-      final wasOnline = _syncStatus == SyncStatus.online;
       final hasConnection = await InternetAccessChecker.hasInternetAccess();
       if (!isActive()) return;
 
@@ -1268,9 +1383,11 @@ class SupabaseSyncService {
           syncStatusNotifier.value = _syncStatus;
           await _flushQueuedOperations();
           if (!isActive()) return;
-          if (!wasOnline) {
-            await syncRecentChangesOnly();
-          }
+          // Reconcile after every listener setup. Realtime subscriptions do
+          // not replay events that happened while a mobile socket was asleep
+          // or reconnecting, so this closes that race even when connectivity
+          // still reports the device as online.
+          await syncRecentChangesOnly();
         } catch (e) {
           if (!isActive()) return;
           // Connection test or setup failed - go offline but don't crash
@@ -1421,15 +1538,14 @@ class SupabaseSyncService {
     if (!isActive()) return;
     if (_currentUserId == null || _isListening) return;
 
-    // Cancel existing listeners before setting up new ones
-    _highlightsChannel?.unsubscribe();
-    _notesChannel?.unsubscribe();
-    _historyChannel?.unsubscribe();
-    _searchHistoryChannel?.unsubscribe();
+    // Cancel existing listeners before setting up new ones.
+    _unsubscribeRealtimeChannels();
 
     _isListening = true;
 
     try {
+      var hasSetupFailure = false;
+
       // Only setup listeners for enabled sync types
       final highlightsEnabled = await _getSyncEnabled('syncHighlights');
       final notesEnabled = await _getSyncEnabled('syncNotes');
@@ -1440,26 +1556,44 @@ class SupabaseSyncService {
         return;
       }
 
+      final userId = _currentUserId;
+      final generation = expectedGeneration ?? _lifecycleGeneration;
+      if (userId == null) {
+        _isListening = false;
+        return;
+      }
+
+      // Do not add a server-side user_id filter here. PostgreSQL's default
+      // delete payload only contains the primary key, so a user_id filter drops
+      // the delete event before the client sees it. Insert/update records are
+      // checked locally and deletes are matched by their UUID. The database is
+      // also configured with REPLICA IDENTITY FULL as the primary safeguard.
+
       // Listen for highlights changes if enabled
       if (highlightsEnabled) {
         try {
-          _highlightsChannel = _supabase
-              .channel('public:highlights')
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'highlights',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'user_id',
-                  value: _currentUserId,
-                ),
-                callback: (PostgresChangePayload payload) {
-                  _handleHighlightsChange(payload);
-                },
-              )
-              .subscribe();
+          final channel =
+              _supabase.channel('selah:highlights:$userId').onPostgresChanges(
+                    event: PostgresChangeEvent.all,
+                    schema: 'public',
+                    table: 'highlights',
+                    callback: (PostgresChangePayload payload) {
+                      _handleHighlightsChange(payload);
+                    },
+                  );
+          _highlightsChannel = channel;
+          channel.subscribe((status, error) {
+            _handleRealtimeSubscriptionStatus(
+              category: 'highlights',
+              channel: channel,
+              status: status,
+              error: error,
+              userId: userId,
+              generation: generation,
+            );
+          });
         } catch (e) {
+          hasSetupFailure = true;
           ErrorHandler.logError(
             e,
             customMessage: 'Failed to setup highlights listener',
@@ -1472,23 +1606,28 @@ class SupabaseSyncService {
       // Listen for notes changes if enabled
       if (notesEnabled) {
         try {
-          _notesChannel = _supabase
-              .channel('public:notes')
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'notes',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'user_id',
-                  value: _currentUserId,
-                ),
-                callback: (PostgresChangePayload payload) {
-                  _handleNotesChange(payload);
-                },
-              )
-              .subscribe();
+          final channel =
+              _supabase.channel('selah:notes:$userId').onPostgresChanges(
+                    event: PostgresChangeEvent.all,
+                    schema: 'public',
+                    table: 'notes',
+                    callback: (PostgresChangePayload payload) {
+                      _handleNotesChange(payload);
+                    },
+                  );
+          _notesChannel = channel;
+          channel.subscribe((status, error) {
+            _handleRealtimeSubscriptionStatus(
+              category: 'notes',
+              channel: channel,
+              status: status,
+              error: error,
+              userId: userId,
+              generation: generation,
+            );
+          });
         } catch (e) {
+          hasSetupFailure = true;
           ErrorHandler.logError(
             e,
             customMessage: 'Failed to setup notes listener',
@@ -1501,23 +1640,28 @@ class SupabaseSyncService {
       // Listen for history changes if enabled
       if (historyEnabled) {
         try {
-          _historyChannel = _supabase
-              .channel('public:history')
-              .onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'history',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'user_id',
-                  value: _currentUserId,
-                ),
-                callback: (PostgresChangePayload payload) {
-                  _handleHistoryChange(payload);
-                },
-              )
-              .subscribe();
+          final channel =
+              _supabase.channel('selah:history:$userId').onPostgresChanges(
+                    event: PostgresChangeEvent.all,
+                    schema: 'public',
+                    table: 'history',
+                    callback: (PostgresChangePayload payload) {
+                      _handleHistoryChange(payload);
+                    },
+                  );
+          _historyChannel = channel;
+          channel.subscribe((status, error) {
+            _handleRealtimeSubscriptionStatus(
+              category: 'history',
+              channel: channel,
+              status: status,
+              error: error,
+              userId: userId,
+              generation: generation,
+            );
+          });
         } catch (e) {
+          hasSetupFailure = true;
           ErrorHandler.logError(
             e,
             customMessage: 'Failed to setup history listener',
@@ -1530,23 +1674,29 @@ class SupabaseSyncService {
       // Listen for search history changes if enabled
       if (searchHistoryEnabled) {
         try {
-          _searchHistoryChannel = _supabase
-              .channel('public:search_history')
+          final channel = _supabase
+              .channel('selah:search_history:$userId')
               .onPostgresChanges(
                 event: PostgresChangeEvent.all,
                 schema: 'public',
                 table: 'search_history',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'user_id',
-                  value: _currentUserId,
-                ),
                 callback: (PostgresChangePayload payload) {
                   _handleSearchHistoryChange(payload);
                 },
-              )
-              .subscribe();
+              );
+          _searchHistoryChannel = channel;
+          channel.subscribe((status, error) {
+            _handleRealtimeSubscriptionStatus(
+              category: 'search_history',
+              channel: channel,
+              status: status,
+              error: error,
+              userId: userId,
+              generation: generation,
+            );
+          });
         } catch (e) {
+          hasSetupFailure = true;
           ErrorHandler.logError(
             e,
             customMessage: 'Failed to setup search history listener',
@@ -1555,13 +1705,22 @@ class SupabaseSyncService {
           // Don't rethrow - continue with other listeners
         }
       }
+
+      if (hasSetupFailure && _isActiveFor(userId, generation)) {
+        _isListening = false;
+        _scheduleRealtimeRecovery(userId: userId, generation: generation);
+      }
     } catch (e) {
       _isListening = false;
       ErrorHandler.logError(
         e,
         customMessage: 'Error setting up realtime listeners',
       );
-      // Don't rethrow - let connectivity monitoring handle reconnection
+      final userId = expectedUserId ?? _currentUserId;
+      final generation = expectedGeneration ?? _lifecycleGeneration;
+      if (userId != null && _isActiveFor(userId, generation)) {
+        _scheduleRealtimeRecovery(userId: userId, generation: generation);
+      }
     }
   }
 
@@ -1746,27 +1905,34 @@ class SupabaseSyncService {
       String category, bool shouldEnable) async {
     if (_currentUserId == null || !isOnline || _isListening == false) return;
 
+    final userId = _currentUserId!;
+    final generation = _lifecycleGeneration;
+
     switch (category) {
       case 'highlights':
         if (shouldEnable && _highlightsChannel == null) {
           // Setup highlights listener
           try {
-            _highlightsChannel = _supabase
-                .channel('public:highlights')
-                .onPostgresChanges(
-                  event: PostgresChangeEvent.all,
-                  schema: 'public',
-                  table: 'highlights',
-                  filter: PostgresChangeFilter(
-                    type: PostgresChangeFilterType.eq,
-                    column: 'user_id',
-                    value: _currentUserId,
-                  ),
-                  callback: (PostgresChangePayload payload) {
-                    _handleHighlightsChange(payload);
-                  },
-                )
-                .subscribe();
+            final channel =
+                _supabase.channel('selah:highlights:$userId').onPostgresChanges(
+                      event: PostgresChangeEvent.all,
+                      schema: 'public',
+                      table: 'highlights',
+                      callback: (PostgresChangePayload payload) {
+                        _handleHighlightsChange(payload);
+                      },
+                    );
+            _highlightsChannel = channel;
+            channel.subscribe((status, error) {
+              _handleRealtimeSubscriptionStatus(
+                category: 'highlights',
+                channel: channel,
+                status: status,
+                error: error,
+                userId: userId,
+                generation: generation,
+              );
+            });
           } catch (e) {
             ErrorHandler.logError(
               e,
@@ -1775,8 +1941,9 @@ class SupabaseSyncService {
           }
         } else if (!shouldEnable && _highlightsChannel != null) {
           // Cancel highlights listener
-          _highlightsChannel?.unsubscribe();
+          final channel = _highlightsChannel;
           _highlightsChannel = null;
+          if (channel != null) unawaited(channel.unsubscribe());
         }
         break;
 
@@ -1784,22 +1951,26 @@ class SupabaseSyncService {
         if (shouldEnable && _notesChannel == null) {
           // Setup notes listener
           try {
-            _notesChannel = _supabase
-                .channel('public:notes')
-                .onPostgresChanges(
-                  event: PostgresChangeEvent.all,
-                  schema: 'public',
-                  table: 'notes',
-                  filter: PostgresChangeFilter(
-                    type: PostgresChangeFilterType.eq,
-                    column: 'user_id',
-                    value: _currentUserId,
-                  ),
-                  callback: (PostgresChangePayload payload) {
-                    _handleNotesChange(payload);
-                  },
-                )
-                .subscribe();
+            final channel =
+                _supabase.channel('selah:notes:$userId').onPostgresChanges(
+                      event: PostgresChangeEvent.all,
+                      schema: 'public',
+                      table: 'notes',
+                      callback: (PostgresChangePayload payload) {
+                        _handleNotesChange(payload);
+                      },
+                    );
+            _notesChannel = channel;
+            channel.subscribe((status, error) {
+              _handleRealtimeSubscriptionStatus(
+                category: 'notes',
+                channel: channel,
+                status: status,
+                error: error,
+                userId: userId,
+                generation: generation,
+              );
+            });
           } catch (e) {
             ErrorHandler.logError(
               e,
@@ -1808,8 +1979,9 @@ class SupabaseSyncService {
           }
         } else if (!shouldEnable && _notesChannel != null) {
           // Cancel notes listener
-          _notesChannel?.unsubscribe();
+          final channel = _notesChannel;
           _notesChannel = null;
+          if (channel != null) unawaited(channel.unsubscribe());
         }
         break;
 
@@ -1817,22 +1989,26 @@ class SupabaseSyncService {
         if (shouldEnable && _historyChannel == null) {
           // Setup history listener
           try {
-            _historyChannel = _supabase
-                .channel('public:history')
-                .onPostgresChanges(
-                  event: PostgresChangeEvent.all,
-                  schema: 'public',
-                  table: 'history',
-                  filter: PostgresChangeFilter(
-                    type: PostgresChangeFilterType.eq,
-                    column: 'user_id',
-                    value: _currentUserId,
-                  ),
-                  callback: (PostgresChangePayload payload) {
-                    _handleHistoryChange(payload);
-                  },
-                )
-                .subscribe();
+            final channel =
+                _supabase.channel('selah:history:$userId').onPostgresChanges(
+                      event: PostgresChangeEvent.all,
+                      schema: 'public',
+                      table: 'history',
+                      callback: (PostgresChangePayload payload) {
+                        _handleHistoryChange(payload);
+                      },
+                    );
+            _historyChannel = channel;
+            channel.subscribe((status, error) {
+              _handleRealtimeSubscriptionStatus(
+                category: 'history',
+                channel: channel,
+                status: status,
+                error: error,
+                userId: userId,
+                generation: generation,
+              );
+            });
           } catch (e) {
             ErrorHandler.logError(
               e,
@@ -1841,8 +2017,9 @@ class SupabaseSyncService {
           }
         } else if (!shouldEnable && _historyChannel != null) {
           // Cancel history listener
-          _historyChannel?.unsubscribe();
+          final channel = _historyChannel;
           _historyChannel = null;
+          if (channel != null) unawaited(channel.unsubscribe());
         }
         break;
 
@@ -1850,22 +2027,27 @@ class SupabaseSyncService {
         if (shouldEnable && _searchHistoryChannel == null) {
           // Setup search history listener
           try {
-            _searchHistoryChannel = _supabase
-                .channel('public:search_history')
+            final channel = _supabase
+                .channel('selah:search_history:$userId')
                 .onPostgresChanges(
                   event: PostgresChangeEvent.all,
                   schema: 'public',
                   table: 'search_history',
-                  filter: PostgresChangeFilter(
-                    type: PostgresChangeFilterType.eq,
-                    column: 'user_id',
-                    value: _currentUserId,
-                  ),
                   callback: (PostgresChangePayload payload) {
                     _handleSearchHistoryChange(payload);
                   },
-                )
-                .subscribe();
+                );
+            _searchHistoryChannel = channel;
+            channel.subscribe((status, error) {
+              _handleRealtimeSubscriptionStatus(
+                category: 'search_history',
+                channel: channel,
+                status: status,
+                error: error,
+                userId: userId,
+                generation: generation,
+              );
+            });
           } catch (e) {
             ErrorHandler.logError(
               e,
@@ -1874,8 +2056,9 @@ class SupabaseSyncService {
           }
         } else if (!shouldEnable && _searchHistoryChannel != null) {
           // Cancel search history listener
-          _searchHistoryChannel?.unsubscribe();
+          final channel = _searchHistoryChannel;
           _searchHistoryChannel = null;
+          if (channel != null) unawaited(channel.unsubscribe());
         }
         break;
       default:
@@ -1896,6 +2079,9 @@ class SupabaseSyncService {
       switch (payload.eventType) {
         case PostgresChangeEvent.insert:
         case PostgresChangeEvent.update:
+          if (!_isRealtimeRecordForCurrentUser(payload.newRecord)) {
+            return;
+          }
           // Convert to List format expected by _downloadHighlights
           final data = [payload.newRecord];
           await _downloadHighlights(data);
@@ -1903,6 +2089,9 @@ class SupabaseSyncService {
         case PostgresChangeEvent.delete:
           // Handle deletion by removing from local database
           final deletedRecord = payload.oldRecord;
+          if (!_isRealtimeDeleteForCurrentUser(deletedRecord)) {
+            return;
+          }
 
           // Use uuid to find and delete the local record (only data available from Supabase realtime with RLS)
           final uuid =
@@ -1956,6 +2145,9 @@ class SupabaseSyncService {
       switch (payload.eventType) {
         case PostgresChangeEvent.insert:
         case PostgresChangeEvent.update:
+          if (!_isRealtimeRecordForCurrentUser(payload.newRecord)) {
+            return;
+          }
           // Convert to List format expected by _downloadNotes
           final data = [payload.newRecord];
           await _downloadNotes(data);
@@ -1963,6 +2155,9 @@ class SupabaseSyncService {
         case PostgresChangeEvent.delete:
           // Handle deletion by removing from local database
           final deletedRecord = payload.oldRecord;
+          if (!_isRealtimeDeleteForCurrentUser(deletedRecord)) {
+            return;
+          }
 
           // Use uuid to find and delete the local record (only data available from Supabase realtime with RLS)
           final uuid =
@@ -2013,6 +2208,9 @@ class SupabaseSyncService {
       switch (payload.eventType) {
         case PostgresChangeEvent.insert:
         case PostgresChangeEvent.update:
+          if (!_isRealtimeRecordForCurrentUser(payload.newRecord)) {
+            return;
+          }
           // Convert to List format expected by _downloadHistory
           final data = [payload.newRecord];
           await _downloadHistory(data);
@@ -2020,6 +2218,9 @@ class SupabaseSyncService {
         case PostgresChangeEvent.delete:
           // Handle deletion by removing from local database
           final deletedRecord = payload.oldRecord;
+          if (!_isRealtimeDeleteForCurrentUser(deletedRecord)) {
+            return;
+          }
 
           // Use uuid to find and delete the local record (only data available from Supabase realtime with RLS)
           final uuid =
@@ -2072,6 +2273,9 @@ class SupabaseSyncService {
       switch (payload.eventType) {
         case PostgresChangeEvent.insert:
         case PostgresChangeEvent.update:
+          if (!_isRealtimeRecordForCurrentUser(payload.newRecord)) {
+            return;
+          }
           // Convert to List format expected by _downloadSearchHistory
           final data = [payload.newRecord];
           await _downloadSearchHistory(data);
@@ -2079,6 +2283,9 @@ class SupabaseSyncService {
         case PostgresChangeEvent.delete:
           // Handle deletion by removing from local database
           final deletedRecord = payload.oldRecord;
+          if (!_isRealtimeDeleteForCurrentUser(deletedRecord)) {
+            return;
+          }
 
           // Try to use uuid first (from Supabase), fall back to timestamp
           final uuid =
@@ -5288,13 +5495,11 @@ class SupabaseSyncService {
     }
 
     _retryTimer?.cancel();
+    _realtimeRecoveryAttempt = 0;
     _recoveryOperationsByType.clear();
 
     // Cancel Supabase listeners
-    _highlightsChannel?.unsubscribe();
-    _notesChannel?.unsubscribe();
-    _historyChannel?.unsubscribe();
-    _searchHistoryChannel?.unsubscribe();
+    _unsubscribeRealtimeChannels();
 
     // Stop connectivity monitoring
     stopConnectionMonitoring();
@@ -5323,12 +5528,10 @@ class SupabaseSyncService {
     }
 
     // Cancel all active listeners
-    _highlightsChannel?.unsubscribe();
-    _notesChannel?.unsubscribe();
-    _historyChannel?.unsubscribe();
-    _searchHistoryChannel?.unsubscribe();
+    _unsubscribeRealtimeChannels();
 
     _retryTimer?.cancel();
+    _realtimeRecoveryAttempt = 0;
     _recoveryOperationsByType.clear();
     stopConnectionMonitoring();
 
