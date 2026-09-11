@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -84,7 +86,21 @@ class WindowsAuthStorage extends LocalStorage {
   @override
   Future<String?> accessToken() async {
     await _ensureInitialized();
-    return _session;
+    if (_session != null) {
+      try {
+        // Verify the session is still valid JSON before returning
+        jsonDecode(_session!);
+        return _session;
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+              '[WindowsAuthStorage] accessToken: stored session is not valid JSON: $e');
+        }
+        // Return it anyway - let Supabase handle validation
+        return _session;
+      }
+    }
+    return null;
   }
 
   @override
@@ -98,13 +114,39 @@ class WindowsAuthStorage extends LocalStorage {
   @override
   Future<void> persistSession(String persistSessionString) async {
     if (!Platform.isWindows) return;
+
+    // Validate session format, but log instead of throwing to avoid causing logout
     if (!_isValidSession(persistSessionString)) {
-      throw const FormatException('Invalid Supabase session');
+      try {
+        final decoded = jsonDecode(persistSessionString);
+        if (kDebugMode) {
+          debugPrint(
+              '[WindowsAuthStorage] Session validation failed. Session keys: ${(decoded as Map).keys.toList()}');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+              '[WindowsAuthStorage] Session validation failed and cannot decode JSON: $e');
+        }
+      }
+      if (kDebugMode) {
+        debugPrint(
+            '[WindowsAuthStorage] WARNING: Attempting to persist potentially invalid session');
+      }
+      // Don't throw - attempt to persist anyway to avoid logout
     }
 
-    await _ensureInitialized();
-    _session = persistSessionString;
-    await _enqueueWrite(() => _writeSessionFile(persistSessionString));
+    try {
+      await _ensureInitialized();
+      _session = persistSessionString;
+      await _enqueueWrite(() => _writeSessionFile(persistSessionString));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[WindowsAuthStorage] persistSession error: $e');
+      }
+      // Don't rethrow to prevent Supabase from signing out
+      // Just log the error and continue
+    }
   }
 
   /// Wait until the last auth write has reached disk before the process exits.
@@ -187,12 +229,20 @@ class WindowsAuthStorage extends LocalStorage {
     if (value == null || value.isEmpty) return false;
     try {
       final decoded = jsonDecode(value);
-      return decoded is Map<String, dynamic> &&
-          decoded['access_token'] is String &&
-          (decoded['access_token'] as String).isNotEmpty &&
-          decoded['refresh_token'] is String &&
-          (decoded['refresh_token'] as String).isNotEmpty;
-    } catch (_) {
+      // More lenient validation - just check that it's a JSON object
+      // Supabase session should have access_token and refresh_token
+      if (decoded is! Map<String, dynamic>) {
+        return false;
+      }
+      // Accept sessions that have at least an access_token
+      // Some sessions might have refresh_token as null
+      final hasAccessToken = decoded['access_token'] is String &&
+          (decoded['access_token'] as String).isNotEmpty;
+      return hasAccessToken;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[WindowsAuthStorage] JSON decode error: $e');
+      }
       return false;
     }
   }

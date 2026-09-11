@@ -1270,9 +1270,11 @@ class SupabaseSyncService {
     if (!_isActiveFor(userId, generation)) return;
 
     // Setup listeners and connection monitoring
+    // Skip reconciliation during login resync since we'll do a full sync anyway
     await _checkConnectionAndSetup(
       expectedUserId: userId,
       expectedGeneration: generation,
+      skipReconciliation: isLoginResync,
     );
     if (!_isActiveFor(userId, generation)) return;
 
@@ -1354,6 +1356,7 @@ class SupabaseSyncService {
   Future<void> _checkConnectionAndSetup({
     String? expectedUserId,
     int? expectedGeneration,
+    bool skipReconciliation = false,
   }) async {
     bool isActive() {
       if (expectedUserId == null || expectedGeneration == null) return true;
@@ -1383,11 +1386,15 @@ class SupabaseSyncService {
           syncStatusNotifier.value = _syncStatus;
           await _flushQueuedOperations();
           if (!isActive()) return;
-          // Reconcile after every listener setup. Realtime subscriptions do
-          // not replay events that happened while a mobile socket was asleep
-          // or reconnecting, so this closes that race even when connectivity
-          // still reports the device as online.
-          await syncRecentChangesOnly();
+          
+          // Reconcile after every listener setup, but skip during login resync
+          // since we'll do a full sync immediately after.
+          // Realtime subscriptions do not replay events that happened while
+          // a mobile socket was asleep or reconnecting, so this closes that race
+          // even when connectivity still reports the device as online.
+          if (!skipReconciliation) {
+            await syncRecentChangesOnly();
+          }
         } catch (e) {
           if (!isActive()) return;
           // Connection test or setup failed - go offline but don't crash
