@@ -461,43 +461,6 @@ class StrongsDatabase {
     return "";
   }
 
-  /// Finds all unique Strong's numbers associated with a word in the given verses.
-  /// Returns a map of Strong's number -> map of (book, chapter, verse) where first found.
-  // static Map<String, Map<String, dynamic>> findStrongsNumbersForWord(
-  //     String word, List<Map<String, dynamic>> verses) {
-  //   if (kDebugMode) {
-  //     debugPrint(
-  //         '[_StrongsDatabase] findStrongsNumbersForWord: starting for "$word" across ${verses.length} verses');
-  //   }
-  //   final result = <String, Map<String, dynamic>>{};
-  //   final searchWord = word.toLowerCase().trim();
-  //   if (searchWord.isEmpty) return result;
-  //   final wordPattern = _wordBoundaryRegex(searchWord);
-
-  //   for (final verseData in verses) {
-  //     final text = verseData["text"] as String;
-  //     final book = verseData["book"] as String;
-  //     final chapter = verseData["chapter"] as int;
-  //     final isSuperscription = verseData["isSuperscription"] == true;
-  //     final verse = isSuperscription ? 0 : verseData["verse"] as int?;
-
-  //     _collectAssociatedStrongsForWord(
-  //       text: text,
-  //       wordPattern: wordPattern,
-  //       result: result,
-  //       book: book,
-  //       chapter: chapter,
-  //       verse: verse,
-  //       isSuperscription: isSuperscription,
-  //     );
-  //   }
-  //   if (kDebugMode) {
-  //     debugPrint(
-  //         '[_StrongsDatabase] findStrongsNumbersForWord: found ${result.length} unique Strong\'s numbers for "$word"');
-  //   }
-  //   return result;
-  // }
-
   static void _collectAssociatedStrongsForWord({
     required String text,
     required RegExp wordPattern,
@@ -522,21 +485,6 @@ class StrongsDatabase {
       }
     });
   }
-
-  /// Returns all verses that contain ANY of the given Strong's numbers.
-  /// Returns a list of maps with "book", "chapter", "verse", "text", and "matchedStrongs" keys.
-  // static List<Map<String, dynamic>> searchByStrongsNumbers(
-  //   List<String> strongsNumbers, {
-  //   bool includeTvm = false,
-  //   bool associatedOnly = true,
-  // }) {
-  //   return _searchByStrongsNumbersData(
-  //     strongsNumbers,
-  //     includeTvm: includeTvm,
-  //     associatedOnly: associatedOnly,
-  //     includePhraseSummary: false,
-  //   ).searchResults;
-  // }
 
   /// Searches for all requested Strong's numbers and accumulates the phrase
   /// summary during the same association traversal.
@@ -688,15 +636,6 @@ class StrongsDatabase {
     }
     return phraseCounts;
   }
-
-  /// Strips ALL Strong's number tags from verse text (e.g., {H1285} -> "").
-  /// Also collapses multiple spaces left behind from adjacent strongs tags.
-  // static String stripAllStrongsTags(String text) {
-  //   String result = text.replaceAll(_strongTagRegex, "");
-  //   // Remove extra spaces from adjacent removed tags (e.g., "{H1916} {H7272}" -> "  " -> " ")
-  //   result = result.replaceAll(_extraSpacesRegex, " ");
-  //   return result.trim();
-  // }
 
   /// Returns all valid book names in the bible data.
   static List<String> getAvailableBooks() {

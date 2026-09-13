@@ -658,24 +658,6 @@ class _VerseChooserDialogState extends State<VerseChooserDialog> {
     );
   }
 
-  // Compact settings button that opens the options menu
-  // Widget _buildCompactSettingsButton(Color txtColor) {
-  //   return GestureDetector(
-  //     behavior: HitTestBehavior.opaque,
-  //     onTap: () => _showSettingsDialog(),
-  //     child: SizedBox(
-  //       height: 32,
-  //       width: 32,
-  //       child: Icon(
-  //         Icons.settings,
-  //         color: txtColor,
-  //         size: 32,
-  //         semanticLabel: 'Verse Chooser Settings',
-  //       ),
-  //     ),
-  //   );
-  // }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

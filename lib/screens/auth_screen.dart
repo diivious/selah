@@ -73,43 +73,6 @@ class _AuthScreenState extends State<AuthScreen> {
         // Show sync options dialog after successful authentication
         await _showSyncDialog();
 
-        // Show sync progress dialog during initialization
-        // if (mounted) {
-        //   showDialog(
-        //     context: context,
-        //     barrierDismissible: false,
-        //     builder: (context) => AlertDialog(
-        //       content: Column(
-        //         mainAxisSize: MainAxisSize.min,
-        //         children: [
-        //           CircularProgressIndicator(),
-        //           const SizedBox(height: 16),
-        //           Text('Initializing sync service...', style: TextStyle(fontSize: uiFontSize, fontFamily: uiFontFamily, color: getAdaptiveTextColor(context))),
-        //         ],
-        //       ),
-        //     ),
-        //   );
-        // }
-
-        // Initialize sync service AFTER user has confirmed preferences
-        //if (mounted) {
-        // Show sync progress dialog during initialization
-        //   showDialog(
-        //     context: context,
-        //     barrierDismissible: false,
-        //     builder: (context) => AlertDialog(
-        //       content: Column(
-        //         mainAxisSize: MainAxisSize.min,
-        //         children: [
-        //           CircularProgressIndicator(),
-        //           const SizedBox(height: 16),
-        //           Text('Initializing sync service...', style: TextStyle(fontSize: uiFontSize, fontFamily: uiFontFamily, color: getAdaptiveTextColor(context))),
-        //         ],
-        //       ),
-        //     ),
-        //   );
-        // }
-
         try {
           final syncService = SupabaseSyncService();
           await syncService.initialize(isLoginResync: true);
@@ -252,28 +215,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _saveAllCurrentPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Save individual preference keys
-    /*
-    await prefs.setInt(
-        'themeMode', themeModeNotifier.value == ThemeMode.light ? 1 : (themeModeNotifier.value == ThemeMode.dark ? 2 : 0));
-    await prefs.setDouble('fontSize', fontSizeNotifier.value);
-    await prefs.setString('fontFamily', fontFamilyNotifier.value);
-    await prefs.setString('lightPrimaryColor', _colorToHex(lightPrimaryColor.value));
-    await prefs.setString('lightBackgroundColor', _colorToHex(lightBackgroundColor.value));
-    await prefs.setString('lightTextColor', _colorToHex(lightTextColor.value));
-    await prefs.setString('darkPrimaryColor', _colorToHex(darkPrimaryColor.value));
-    await prefs.setString('darkBackgroundColor', _colorToHex(darkBackgroundColor.value));
-    await prefs.setString('darkTextColor', _colorToHex(darkTextColor.value));
-    await prefs.setString('lightHighlightColor', _colorToHex(lightHighlightColor.value));
-    await prefs.setString('darkHighlightColor', _colorToHex(darkHighlightColor.value));
-    await prefs.setBool('fullscreen', fullscreenNotifier.value);
-    await prefs.setBool('showNotesInline', showNotesInlineNotifier.value);
-    await prefs.setInt('maxVerticalScreens', maxVerticalScreens.value);
-    await prefs.setInt('maxHorizontalScreens', maxHorizontalScreens.value);
-    await prefs.setStringList('highlightColors', highlightColorsNotifier.value.map((c) => c.toARGB32().toString()).toList());
-    */
-
     await prefs.setBool('syncHighlights', syncHighlightsNotifier.value);
     await prefs.setBool('syncNotes', syncNotesNotifier.value);
     await prefs.setBool('syncHistory', syncHistoryNotifier.value);

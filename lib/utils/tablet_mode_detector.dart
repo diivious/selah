@@ -32,56 +32,6 @@ class TabletModeDetector {
     return _platform.hasTouchScreen();
   }
 
-  /// Returns the maximum number of touch points supported by the device.
-  // static Future<int> getMaximumTouchPoints() {
-  //   return _platform.getMaximumTouchPoints();
-  // }
-
-  /// Returns true if this is a convertible (2-in-1) device that can switch between tablet and laptop modes.
-  ///
-  /// This helps distinguish between pure tablets and convertible devices like Surface Pro, Lenovo Yoga, etc.
-  // static Future<bool> isConvertibleDevice() {
-  //   return _platform.isConvertibleDevice();
-  // }
-
-  /// Debug function to log raw input devices for diagnostics.
-  ///
-  /// This outputs detailed information about all input devices detected by Windows,
-  /// helping to diagnose keyboard detection issues on specific hardware.
-  // static Future<String> debugLogInputDevices() {
-  //   return _platform.debugLogInputDevices();
-  // }
-
-  /// Returns information about attached keyboard devices.
-  ///
-  /// This method uses proper HID classification to identify keyboard devices:
-  /// - Standard keyboards (dwType == RIM_TYPEKEYBOARD)
-  /// - HID keyboards (dwType == RIM_TYPEHID with UsagePage: 0x0001, Usage: 0x0006)
-  ///
-  /// Returns detailed information about all detected keyboard devices.
-  // static Future<String> getKeyboardDevices() {
-  //   return _platform.getKeyboardDevices();
-  // }
-
-  /// Returns comprehensive device information including all tablet mode related data.
-  ///
-  /// The returned map contains:
-  /// - 'isTabletMode': bool indicating if device is in tablet mode
-  /// - 'isKeyboardAttached': bool indicating if keyboard is attached
-  /// - 'hasTouchScreen': bool indicating if device has touch screen
-  /// - 'maxTouchPoints': int indicating maximum touch points supported
-  // static Future<Map<String, dynamic>> getDeviceInfo() {
-  //   return _platform.getDeviceInfo();
-  // }
-
-  /// Sets a mock platform implementation for testing.
-  ///
-  // @visibleForTesting
-  // static set platform(TabletModePlatform platformInstance) {
-  //   _platform.dispose();
-  //   _platform = platformInstance;
-  // }
-
   /// Returns a stream that emits true when tablet mode is active, false when inactive.
   /// Returns null on platforms that don't support listening for changes.
   static Stream<bool>? get tabletModeChanges {
@@ -133,30 +83,6 @@ class TabletModeDetector {
   static void dispose() {
     _platform.dispose();
   }
-
-  /// Manually triggers a tablet mode detection and notification for testing
-  /// This is useful for debugging when automatic detection isn't working
-  // static Future<void> testTabletModeDetection() async {
-  //   try {
-  //     // Get current tablet mode
-  //     final isTablet = await isTabletMode();
-  //     if (kDebugMode) debugPrint('isTablet: $isTablet');
-
-  //     // Manually trigger the stream update
-  //     tabletModeChanges
-  //         ?.listen((mode) {})
-  //         .cancel(); // Cancel immediately after testing
-  //   } catch (e) {
-  //     ErrorHandler.logError(
-  //       e,
-  //       customMessage: 'Manual tablet mode test failed',
-  //       context: {
-  //         'class': 'TabletModeDetector',
-  //         'method': 'testTabletModeDetection'
-  //       },
-  //     );
-  //   }
-  // }
 }
 
 class _TabletModeNotifier extends ValueNotifier<bool> {

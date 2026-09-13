@@ -38,24 +38,6 @@ class ErrorHandler {
   factory ErrorHandler() => _instance;
   ErrorHandler._internal();
 
-  // Global error handler for Flutter framework errors
-  // static void catchFrameworkErrors() {
-  //   FlutterError.onError = (FlutterErrorDetails details) {
-  //     ErrorHandler.handleError(AppError(
-  //       message: 'Framework error: ${details.exception}',
-  //       type: ErrorType.system,
-  //       severity: ErrorSeverity.high,
-  //       originalError: details.exception,
-  //       stackTrace: details.stack,
-  //       context: {
-  //         'library': details.library,
-  //         'summary': details.summary.toString(),
-  //         'silent': details.silent,
-  //       },
-  //     ));
-  //   };
-  // }
-
   // Main error handling method
   static Future<void> handleError(AppError error,
       {BuildContext? context}) async {
@@ -153,25 +135,6 @@ class ErrorHandler {
         ),
         context: buildContext);
   }
-
-  // Handle database errors
-  // static Future<void> handleDatabaseError(
-  //   dynamic error, {
-  //   Map<String, dynamic>? context,
-  //   BuildContext? buildContext,
-  // }) async {
-  //   final message = 'Database operation failed';
-  //   await handleError(
-  //       AppError(
-  //         message: message,
-  //         type: ErrorType.database,
-  //         severity: ErrorSeverity.high,
-  //         originalError: error,
-  //         stackTrace: StackTrace.current,
-  //         context: context,
-  //       ),
-  //       context: buildContext);
-  // }
 
   // Handle sync errors
   static Future<void> handleSyncError(

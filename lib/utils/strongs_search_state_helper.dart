@@ -37,27 +37,27 @@ class StrongsSearchStateHelper {
   }
 
   /// Returns the most recent state from the stack without removing it
-  static Future<StrongsSearchState?> peekState() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stackJson = prefs.getStringList(_stateStackKey) ?? [];
+  // static Future<StrongsSearchState?> peekState() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final stackJson = prefs.getStringList(_stateStackKey) ?? [];
 
-    if (stackJson.isEmpty) {
-      return null;
-    }
+  //   if (stackJson.isEmpty) {
+  //     return null;
+  //   }
 
-    return StrongsSearchState.fromJson(stackJson.last);
-  }
+  //   return StrongsSearchState.fromJson(stackJson.last);
+  // }
 
-  /// Clears the entire state stack
-  static Future<void> clearStack() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_stateStackKey);
-  }
+  // /// Clears the entire state stack
+  // static Future<void> clearStack() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.remove(_stateStackKey);
+  // }
 
-  /// Returns the current stack depth
-  static Future<int> getStackDepth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stackJson = prefs.getStringList(_stateStackKey) ?? [];
-    return stackJson.length;
-  }
+  // /// Returns the current stack depth
+  // static Future<int> getStackDepth() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final stackJson = prefs.getStringList(_stateStackKey) ?? [];
+  //   return stackJson.length;
+  // }
 }

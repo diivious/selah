@@ -1133,26 +1133,6 @@ class BibleStudyApp extends StatelessWidget {
                                                 FlutterQuillLocalizations
                                                     .delegate,
                                               ],
-                                              // supportedLocales: [
-                                              //   const Locale('en', 'US') // English, US
-                                              // ],
-                                              // // 2. Add a localeResolutionCallback to handle failures
-                                              // localeResolutionCallback: (
-                                              //   Locale? locale,
-                                              //   Iterable<Locale> supportedLocales,
-                                              // ) {
-                                              //   // Check if the current device locale is supported
-                                              //   if (locale != null) {
-                                              //     for (var supportedLocale in supportedLocales) {
-                                              //       if (supportedLocale.languageCode == locale.languageCode) {
-                                              //         return supportedLocale;
-                                              //       }
-                                              //     }
-                                              //   }
-
-                                              //   // If the device locale is null or not supported, use a fallback
-                                              //   return supportedLocales.first; // e.g., default to 'en_US'
-                                              // },
                                               theme: ThemeData(
                                                 scrollbarTheme:
                                                     ScrollbarThemeData(
@@ -2251,21 +2231,6 @@ class _MultiBibleViewState extends State<MultiBibleView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // SizedBox(
-                //   width: double.infinity,
-                //   child: Center(
-                //     child: Text(
-                //       'Customize fonts',
-                //       style: TextStyle(
-                //         fontSize: uiFontSize,
-                //         fontFamily: uiFontFamily,
-                //         fontWeight: FontWeight.bold,
-                //         color: getAdaptiveTextColor(context),
-                //       ),
-                //     ),
-                //   ),
-                // ),
-                // const SizedBox(height: 16),
                 _buildFontSizeAdjuster(
                   context: context,
                   title: 'Bible Font Size',
@@ -3400,41 +3365,6 @@ class _MultiBibleViewState extends State<MultiBibleView>
                       ),
                       onTap: () => _showAccountOptionsDialog(context),
                     );
-                    /* return ValueListenableBuilder<User?>(
-                      valueListenable: currentUser,
-                      builder: (context, user, _) {
-                        return FutureBuilder<String?>(
-                          future: _getUsername(user),
-                          builder: (context, snapshot) {
-                            final username = snapshot.data ?? 'Unknown';
-                            return ListTile(
-                              title: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  //Icon(Icons.cloud_done, color: isDark ? darkPrimaryColor.value : lightPrimaryColor.value,),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '✅ Signed in as $username',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: uiFontSize,
-                                        fontFamily: uiFontFamily,
-                                        color: getAdaptiveTextColor(
-                                          context,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              onTap: () => _showAccountOptionsDialog(context),
-                            );
-                          },
-                        );
-                      },
-                    );
-                    */
                   } else {
                     return ListTile(
                       title: Row(
@@ -6276,21 +6206,4 @@ class _MultiBibleViewState extends State<MultiBibleView>
       return cachedUsername ?? 'Unknown';
     }
   }
-
-  // tablet detection mode testing
-  // Add this to any widget's initState() or call from main()
-  // Future<void> testTabletMode() async {
-  //   final isTablet = await TabletModeDetector.isTabletMode();
-  //   final hasKeyboard = await TabletModeDetector.isKeyboardAttached();
-  //   final hasTouch = await TabletModeDetector.hasTouchScreen();
-  //   final maxTouchPoints = await TabletModeDetector.getMaximumTouchPoints();
-  //   final deviceInfo = await TabletModeDetector.getDeviceInfo();
-
-  //   if (kDebugMode) debugPrint('=== Tablet Mode Detection ===');
-  //   if (kDebugMode) debugPrint('Tablet Mode: $isTablet');
-  //   if (kDebugMode) debugPrint('Keyboard Attached: $hasKeyboard');
-  //   if (kDebugMode) debugPrint('Touch Screen: $hasTouch');
-  //   if (kDebugMode) debugPrint('Max Touch Points: $maxTouchPoints');
-  //   if (kDebugMode) debugPrint('Device Info: $deviceInfo');
-  // }
 }
