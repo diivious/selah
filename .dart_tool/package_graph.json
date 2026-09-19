@@ -281,34 +281,6 @@
       "dependencies": []
     },
     {
-      "name": "flutter_quill",
-      "version": "11.5.1",
-      "dependencies": [
-        "charcode",
-        "collection",
-        "dart_quill_delta",
-        "flutter",
-        "flutter_colorpicker",
-        "flutter_keyboard_visibility_temp_fork",
-        "flutter_localizations",
-        "flutter_quill_delta_from_html",
-        "html",
-        "intl",
-        "markdown",
-        "meta",
-        "quill_native_bridge",
-        "quiver",
-        "url_launcher"
-      ]
-    },
-    {
-      "name": "flutter_colorpicker",
-      "version": "1.1.0",
-      "dependencies": [
-        "flutter"
-      ]
-    },
-    {
       "name": "window_manager",
       "version": "0.5.2",
       "dependencies": [
@@ -445,6 +417,34 @@
         "meta",
         "path",
         "vm_service"
+      ]
+    },
+    {
+      "name": "flutter_quill",
+      "version": "11.6.0",
+      "dependencies": [
+        "charcode",
+        "collection",
+        "dart_quill_delta",
+        "flutter",
+        "flutter_colorpicker",
+        "flutter_keyboard_visibility_temp_fork",
+        "flutter_localizations",
+        "flutter_quill_delta_from_html",
+        "html",
+        "intl",
+        "markdown",
+        "meta",
+        "quill_native_bridge",
+        "quiver",
+        "url_launcher"
+      ]
+    },
+    {
+      "name": "flutter_colorpicker",
+      "version": "1.1.0",
+      "dependencies": [
+        "flutter"
       ]
     },
     {
@@ -663,15 +663,6 @@
       ]
     },
     {
-      "name": "passkeys_platform_interface",
-      "version": "2.9.0",
-      "dependencies": [
-        "flutter",
-        "json_annotation",
-        "plugin_platform_interface"
-      ]
-    },
-    {
       "name": "shared_preferences_windows",
       "version": "2.4.1",
       "dependencies": [
@@ -698,11 +689,6 @@
     {
       "name": "mime",
       "version": "2.1.0",
-      "dependencies": []
-    },
-    {
-      "name": "vector_math",
-      "version": "2.4.2",
       "dependencies": []
     },
     {
@@ -745,79 +731,20 @@
       "dependencies": []
     },
     {
+      "name": "passkeys_platform_interface",
+      "version": "2.10.0",
+      "dependencies": [
+        "flutter",
+        "json_annotation",
+        "plugin_platform_interface"
+      ]
+    },
+    {
       "name": "shared_preferences_platform_interface",
       "version": "2.4.2",
       "dependencies": [
         "flutter",
         "plugin_platform_interface"
-      ]
-    },
-    {
-      "name": "dependency_validator",
-      "version": "5.0.6",
-      "dependencies": [
-        "analyzer",
-        "args",
-        "build_config",
-        "checked_yaml",
-        "glob",
-        "io",
-        "json_annotation",
-        "logging",
-        "package_config",
-        "path",
-        "pub_semver",
-        "pubspec_parse",
-        "yaml"
-      ]
-    },
-    {
-      "name": "pubspec_parse",
-      "version": "1.6.0",
-      "dependencies": [
-        "checked_yaml",
-        "collection",
-        "json_annotation",
-        "pub_semver",
-        "yaml"
-      ]
-    },
-    {
-      "name": "sqflite_common_ffi_web",
-      "version": "1.1.3",
-      "dependencies": [
-        "args",
-        "dev_build",
-        "http",
-        "meta",
-        "path",
-        "process_run",
-        "pub_semver",
-        "sqflite_common",
-        "sqflite_common_ffi",
-        "sqlite3",
-        "synchronized",
-        "web"
-      ]
-    },
-    {
-      "name": "sqflite_common_ffi",
-      "version": "2.4.3",
-      "dependencies": [
-        "meta",
-        "path",
-        "sqflite_common",
-        "sqlite3",
-        "synchronized"
-      ]
-    },
-    {
-      "name": "sqflite_common",
-      "version": "2.5.12",
-      "dependencies": [
-        "meta",
-        "path",
-        "synchronized"
       ]
     },
     {
@@ -828,10 +755,23 @@
       ]
     },
     {
+      "name": "vector_math",
+      "version": "2.4.3",
+      "dependencies": []
+    },
+    {
       "name": "string_scanner",
       "version": "1.4.1",
       "dependencies": [
         "source_span"
+      ]
+    },
+    {
+      "name": "file",
+      "version": "7.0.1",
+      "dependencies": [
+        "meta",
+        "path"
       ]
     },
     {
@@ -944,14 +884,6 @@
       "dependencies": []
     },
     {
-      "name": "file",
-      "version": "7.0.1",
-      "dependencies": [
-        "meta",
-        "path"
-      ]
-    },
-    {
       "name": "permission_handler_apple",
       "version": "9.6.1",
       "dependencies": [
@@ -985,6 +917,36 @@
       ]
     },
     {
+      "name": "dependency_validator",
+      "version": "5.1.0",
+      "dependencies": [
+        "analyzer",
+        "args",
+        "build_config",
+        "checked_yaml",
+        "glob",
+        "io",
+        "json_annotation",
+        "logging",
+        "package_config",
+        "path",
+        "pub_semver",
+        "pubspec_parse",
+        "yaml"
+      ]
+    },
+    {
+      "name": "pubspec_parse",
+      "version": "1.6.0",
+      "dependencies": [
+        "checked_yaml",
+        "collection",
+        "json_annotation",
+        "pub_semver",
+        "yaml"
+      ]
+    },
+    {
       "name": "pub_semver",
       "version": "2.2.1",
       "dependencies": [
@@ -992,40 +954,47 @@
       ]
     },
     {
+      "name": "sqflite_common_ffi_web",
+      "version": "1.2.0",
+      "dependencies": [
+        "args",
+        "dev_build",
+        "http",
+        "meta",
+        "path",
+        "process_run",
+        "pub_semver",
+        "sqflite_common",
+        "sqflite_common_ffi",
+        "sqlite3",
+        "synchronized",
+        "web"
+      ]
+    },
+    {
+      "name": "sqflite_common",
+      "version": "2.5.13",
+      "dependencies": [
+        "meta",
+        "path",
+        "synchronized"
+      ]
+    },
+    {
+      "name": "sqflite_common_ffi",
+      "version": "2.4.3",
+      "dependencies": [
+        "meta",
+        "path",
+        "sqflite_common",
+        "sqlite3",
+        "synchronized"
+      ]
+    },
+    {
       "name": "synchronized",
       "version": "3.4.2",
       "dependencies": []
-    },
-    {
-      "name": "material_ui",
-      "version": "1.2.0",
-      "dependencies": [
-        "collection",
-        "cupertino_ui",
-        "flutter",
-        "flutter_localizations",
-        "intl",
-        "material_color_utilities",
-        "vector_math"
-      ]
-    },
-    {
-      "name": "cupertino_ui",
-      "version": "1.0.2",
-      "dependencies": [
-        "collection",
-        "flutter",
-        "flutter_localizations",
-        "intl"
-      ]
-    },
-    {
-      "name": "archive",
-      "version": "4.2.0",
-      "dependencies": [
-        "path",
-        "posix"
-      ]
     },
     {
       "name": "analyzer",
@@ -1060,12 +1029,26 @@
       ]
     },
     {
-      "name": "posix",
-      "version": "6.5.2",
+      "name": "material_ui",
+      "version": "1.3.0",
       "dependencies": [
-        "ffi",
-        "meta",
-        "path"
+        "collection",
+        "cupertino_ui",
+        "flutter",
+        "flutter_localizations",
+        "intl",
+        "material_color_utilities",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "cupertino_ui",
+      "version": "1.1.0",
+      "dependencies": [
+        "collection",
+        "flutter",
+        "flutter_localizations",
+        "intl"
       ]
     },
     {
@@ -1095,6 +1078,23 @@
         "flutter",
         "meta",
         "plugin_platform_interface"
+      ]
+    },
+    {
+      "name": "archive",
+      "version": "4.3.0",
+      "dependencies": [
+        "path",
+        "posix"
+      ]
+    },
+    {
+      "name": "posix",
+      "version": "6.5.2",
+      "dependencies": [
+        "ffi",
+        "meta",
+        "path"
       ]
     },
     {
@@ -1565,13 +1565,6 @@
       ]
     },
     {
-      "name": "image",
-      "version": "4.9.2",
-      "dependencies": [
-        "archive"
-      ]
-    },
-    {
       "name": "image_picker",
       "version": "1.2.3",
       "dependencies": [
@@ -1656,8 +1649,27 @@
       ]
     },
     {
+      "name": "path_provider_linux",
+      "version": "2.2.2",
+      "dependencies": [
+        "ffi",
+        "flutter",
+        "path",
+        "path_provider_platform_interface",
+        "xdg_directories"
+      ]
+    },
+    {
+      "name": "xdg_directories",
+      "version": "1.1.0",
+      "dependencies": [
+        "meta",
+        "path"
+      ]
+    },
+    {
       "name": "sqlite3",
-      "version": "3.5.2",
+      "version": "3.6.0",
       "dependencies": [
         "code_assets",
         "collection",
@@ -1669,15 +1681,6 @@
         "path",
         "typed_data",
         "web"
-      ]
-    },
-    {
-      "name": "code_assets",
-      "version": "2.0.0",
-      "dependencies": [
-        "collection",
-        "hooks",
-        "logging"
       ]
     },
     {
@@ -1702,10 +1705,20 @@
       ]
     },
     {
+      "name": "code_assets",
+      "version": "2.1.0",
+      "dependencies": [
+        "collection",
+        "hooks",
+        "logging"
+      ]
+    },
+    {
       "name": "native_toolchain_c",
-      "version": "0.19.4",
+      "version": "0.19.5",
       "dependencies": [
         "code_assets",
+        "file",
         "glob",
         "hooks",
         "logging",
@@ -1724,22 +1737,10 @@
       ]
     },
     {
-      "name": "path_provider_linux",
-      "version": "2.2.2",
+      "name": "image",
+      "version": "4.10.1",
       "dependencies": [
-        "ffi",
-        "flutter",
-        "path",
-        "path_provider_platform_interface",
-        "xdg_directories"
-      ]
-    },
-    {
-      "name": "xdg_directories",
-      "version": "1.1.0",
-      "dependencies": [
-        "meta",
-        "path"
+        "archive"
       ]
     },
     {
@@ -1931,7 +1932,7 @@
     },
     {
       "name": "dev_build",
-      "version": "1.1.9",
+      "version": "1.1.10",
       "dependencies": [
         "args",
         "collection",
