@@ -17130,7 +17130,7 @@ const Map<String, Map<int, Map<int, String>>> bibleDataStrongs = {
       29: 'O give thanks{H3034}{{H8685}} unto the LORD{H3068}; for he is good{H2896}: for his mercy{H2617} endureth for ever{H5769}.',
     },
     119: {
-      1: 'Blessed{H835} are the undefiled{H8549} in the way{H1870}, who walk{H1980}{{H8802}} in the law{H8451} of the LORD{H3068}.',
+      1: '(ALEPH.) Blessed{H835} are the undefiled{H8549} in the way{H1870}, who walk{H1980}{{H8802}} in the law{H8451} of the LORD{H3068}.',
       2: 'Blessed{H835} are they that keep{H5341}{{H8802}} his testimonies{H5713}, and that seek{H1875}{{H8799}} him with the whole heart{H3820}.',
       3: 'They also do{H6466}{{H8804}} no iniquity{H5766}: they walk{H1980}{{H8804}} in his ways{H1870}.',
       4: 'Thou hast commanded{H6680}{{H8765}} us to keep{H8104}{{H8800}} thy precepts{H6490} diligently{H3966}.',
